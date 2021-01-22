@@ -1,5 +1,5 @@
 --batch-file playlist.txt
--f 'bestvideo[ext=webm]+bestaudio[ext=webm]/best[ext=webm]/best'
+-f 'bestvideo,bestaudio'
 --output downloads/%(title)s_%(id)s.%(ext)s
 --continue
 
