@@ -1,40 +1,67 @@
 name: do
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: download
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Deno (JS runtime for yt-dlp)
+        run: |
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install ffmpeg
-          git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git pull --rebase
-          chmod +x ./bin/youtube-dl
-          ./bin/youtube-dl --config-location config.txt
-          tar -czvf downloads.tar.gz downloads/*.mp4
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade "yt-dlp[default]"
+
+      - name: Download
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          yt-dlp --version
+          mkdir -p downloads
+          COOKIE_ARGS=()
+          if [ -n "${YT_COOKIES:-}" ]; then
+            printf '%s' "$YT_COOKIES" > cookies.txt
+            COOKIE_ARGS+=(--cookies cookies.txt)
+            echo "cookies.txt loaded from YT_COOKIES secret"
+          else
+            echo "::warning::YT_COOKIES secret is empty; YouTube may return a bot check"
+          fi
+          yt-dlp "${COOKIE_ARGS[@]}" --config-location config.txt
+          echo "=== downloaded files ==="
+          ls -lh downloads/
+
+      - name: Package
+        run: |
+          if [ -z "$(ls -A downloads 2>/dev/null)" ]; then
+            echo "::error::No files were downloaded"
+            exit 1
+          fi
+          tar -czvf downloads.tar.gz -C downloads .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.run_id }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./downloads.tar.gz
-          asset_name: downloads.tar.gz
-          asset_content_type: application/gzip
+          name: Release ${{ github.run_number }}
+          files: downloads.tar.gz
+          fail_on_unmatched_files: true

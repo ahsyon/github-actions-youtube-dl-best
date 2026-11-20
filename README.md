@@ -1,41 +1,57 @@
-# Github-actions-youtube-dl ![do](https://github.com/Heraldik/github-actions-youtube-dl/workflows/do/badge.svg)
+# Github-actions-youtube-dl-best
 
 使用 GitHub Actions 下载 YouTube 最高画质视频，并自动发布到 Release。
 
+> 2026-11 更新：已把停更的 `youtube-dl` 换成持续维护的 `yt-dlp`，升级所有 Actions 组件，
+> 并加入 YouTube 登录 cookies 支持，解决「Sign in to confirm you're not a bot」人机验证问题。
 
 ## 注意！
 
-- **Github Release 最高可以发布 2G 大小的文件，注意自己的压缩包大小不要超过 2G。**（[官方文档说明](https://docs.github.com/cn/free-pro-team@latest/github/managing-large-files/distributing-large-binaries)）
+- **GitHub Release 单个文件上限 2 GB，压缩包别超过 2 GB。**（[官方文档](https://docs.github.com/cn/free-pro-team@latest/github/managing-large-files/distributing-large-binaries)）
+- 下载完成后尽量删除 Release 中无用的视频文件，**善待 GitHub**。
+- cookies 属于敏感凭据，**不要**提交到仓库里，只能放进 GitHub Secret。
 
-- **请大家下载完成后尽量删除 Release 中无用的视频文件**
+## 快速开始
 
-- **✨善待 GitHub**
+1. Fork 本仓库或 Use this template，并在 Actions 里启用工作流。
+2. **配置 cookies（关键步骤，见下文）**——不配置大概率会触发人机验证而失败。
+3. 把要下载的视频链接填进 **playlist.txt**，每行一个，commit push。
+4. 工作流自动运行，下载的 MP4 打包成 `downloads.tar.gz` 发布到 **Release**。
+5. 进 Release 下载压缩包即可。
 
-## 使用
+也可以随时在 Actions 页面点 **Run workflow** 手动触发。
 
-1. Fork 本仓库 或者 Use this template。
+## 配置 YouTube cookies（必做）
 
-![image-20201128114406344](README.assets/image-20201128114406344.png)
+GitHub Actions 跑在数据中心 IP 上，YouTube 几乎一定会弹人机验证。解决办法是提供一份已登录
+YouTube 的浏览器 cookies。
 
-2. 创建好自己的仓库后，在 Actions 中启用 GitHub Actions（Use this template 默认启用）。
+**第一步：导出 cookies.txt**
 
-![image-20201128114243884](README.assets/image-20201128114243884.png)
+- 在 Chrome / Edge 安装扩展 **Get cookies.txt LOCALLY**（开源，本地导出，不上传数据）。
+- 浏览器登录你的 YouTube 账号，打开 youtube.com。
+- 用扩展导出当前站点的 cookies，保存为 `cookies.txt`（Netscape 格式）。
 
-3. *按需更改 config.txt 中的内容（非必要步骤，可以在此调整 youtube-dl 的下载参数）*。
-4. 将你要下载的 YouTube 视频的地址填进 **playlist.txt** 中，每行限一个视频链接，commit push 提交。
+**第二步：存成 GitHub Secret**
 
-![image-20201128121024007](README.assets/image-20201128121024007.png)
+- 仓库页面 → Settings → Secrets and variables → Actions → New repository secret。
+- Name 填 `YT_COOKIES`，Value 把 `cookies.txt` 的**全部文本**粘贴进去 → Add secret。
 
-5. Actions 自动运行后会将所有下载好的视频打包成 downloads.tar.gz 发布到 **Release** 中。
-6. 进入 Release，下载打包好的压缩文件。
+**第三步：重新运行**
 
-![image-20201128114604022](README.assets/image-20201128114604022.png)
+- 再次 push 或手动 Run workflow。工作流会把 Secret 写成临时 cookies.txt 供 yt-dlp 使用，
+  用完即随 runner 销毁，不会进仓库、不会进 Release。
+
+> 建议用一个专门的小号登录 YouTube 来导出 cookies，避免主账号因自动化下载被风控。
+> cookies 会过期（通常几周到几个月），届时重新导出并更新 Secret 即可。
+
+## 常见问题
+
+- **「Sign in to confirm you're not a bot」**：cookies 没配、已过期，或账号被风控。重新导出更新 `YT_COOKIES`。
+- **只有低画质**：检查 `config.txt` 的格式选择器；部分视频的高画质需要 cookies 才能取到。
+- **403 / Unable to extract**：yt-dlp 每次运行都会自动升到最新版，一般是 YouTube 刚改版，等几天即可。
+- **要下音频**：把 `config.txt` 的 `-f` 行改成 `-f bestaudio/best --extract-audio --audio-format mp4`。
 
 ## License
 
-[MIT](https://github.com/Heraldik/github-actions-youtube-dl/blob/main/LICENSE) © Heraldik
-
-## 鸣谢
-
-[justjavac](https://github.com/justjavac/github-actions-youtube-dl)
-
+[MIT](LICENSE) © Heraldik
