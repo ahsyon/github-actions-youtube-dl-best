@@ -41,6 +41,7 @@ jobs:
           COOKIE_ARGS=()
           if [ -n "${YT_COOKIES:-}" ]; then
             printf '%s' "$YT_COOKIES" > cookies.txt
+            python normalize_cookies.py || { echo "::error::Failed to normalize cookies"; exit 1; }
             COOKIE_ARGS+=(--cookies cookies.txt)
             echo "cookies.txt loaded from YT_COOKIES secret"
           else
